@@ -1,0 +1,11 @@
+__pycache__
+*.env
+/photos
+/.vscode
+/.venv
+/config*.yaml
+!/config.example.yaml
+/pg_data
+/dist
+*.ipynb
+*.jpeg

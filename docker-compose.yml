@@ -1,0 +1,24 @@
+version: '3.5'
+
+name: ya-gpt-bot
+
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: ya-gpt-database
+    environment:
+      POSTGRES_USER: $DB_USER
+      POSTGRES_PASSWORD: $DB_PASSWORD
+      POSTGRES_DB: $DB_NAME
+    ports:
+      - 5432:$DB_PORT
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+
+  bot:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
