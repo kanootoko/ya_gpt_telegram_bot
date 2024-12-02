@@ -10,7 +10,7 @@ t_conversation = Table(
     Column("chat_id", BigInteger(), nullable=False),
     Column("user_from", String(), autoincrement=False, nullable=False),
     Column("user_to", String(), autoincrement=False, nullable=True),
-    Column("message_timestamp", TIMESTAMP(timezone=True), autoincrement=False, nullable=True),
+    Column("message_timestamp", TIMESTAMP(timezone=False), autoincrement=False, nullable=True),
     Column("text", String(), autoincrement=False, nullable=False),
 )
 """

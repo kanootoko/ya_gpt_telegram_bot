@@ -141,10 +141,8 @@ async def digest_request(
         await message.bot.send_message(chat_id, text="Что-то пошло не так - ни одно сообщение не попало в контекст")
         return
     messages_joined = "\n".join(messages)
-    prompt = f"""
-{prompt_init}
-{messages_joined}  
-"""
+    prompt = f"""{prompt_init}
+{messages_joined}"""
     try:
         model_response = await gpt_client.request(prompt, creativity_override=0.0)
         await message.bot.send_message(chat_id, text=model_response)

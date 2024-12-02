@@ -24,7 +24,7 @@ def upgrade() -> None:
         sa.Column("chat_id", sa.BigInteger(), nullable=False),
         sa.Column("user_from", sa.String(), autoincrement=False, nullable=False),
         sa.Column("user_to", sa.String(), autoincrement=False, nullable=True),
-        sa.Column("message_timestamp", sa.TIMESTAMP(timezone=True), autoincrement=False, nullable=True),
+        sa.Column("message_timestamp", sa.TIMESTAMP(timezone=False), autoincrement=False, nullable=True),
         sa.Column("text", sa.String(), autoincrement=False, nullable=False),
     )
 
