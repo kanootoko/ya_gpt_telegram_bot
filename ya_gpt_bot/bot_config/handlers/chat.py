@@ -22,7 +22,7 @@ chat_messages_router.message.filter(~DirectMessage())
 
 responses = get_responses()
 
-CONTEXT_LENGTH = 300  # 2**13
+CONTEXT_LENGTH = 2**13
 
 
 @chat_messages_router.message(Command("tg_id"))
