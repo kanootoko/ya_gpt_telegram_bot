@@ -25,6 +25,27 @@ from .models.text_generation import (
     TextGenerationResponse,
     TextGenerationResult,
 )
+from .waiter import AsyncWaiterDummy
+
+
+class DummyGPTClient(GPTClient):
+    """
+    Dummy impl for local tests
+    """
+
+    def __init__(self, waiter: AsyncWaiterDummy, *args, **kwargs):  # pylint: disable=unused-argument
+        super().__init__(waiter)
+
+    async def _request(  # pylint: disable=too-many-arguments
+        self,
+        request_dialog: list[str] | str,
+        creativity_override: float | None = None,
+        instruction_text_override: str | None = None,
+        timeout_override: int | None = None,
+        logger: Logger = global_logger,  # pylint: disable=unused-argument
+        **kwargs,
+    ) -> str:
+        return "Dummy response"
 
 
 class YaGPTClient(GPTClient):
