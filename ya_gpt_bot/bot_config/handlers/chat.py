@@ -145,10 +145,11 @@ async def digest_request(
 async def save_conversation(message: Message, conversation_service: ConversationService):
     """save every message for the later digest"""
     to_name = None if message.reply_to_message is None else message.reply_to_message.from_user.username
-    await conversation_service.save_message(
-        chat_id=message.chat.id,
-        from_name=message.from_user.username,
-        to_name=to_name,
-        message_timestamp=message.date,
-        text=message.text,
-    )
+    if conversation_service.should_save(message.chat.id, message.from_user.id):
+        await conversation_service.save_message(
+            chat_id=message.chat.id,
+            from_name=message.from_user.username,
+            to_name=to_name,
+            message_timestamp=message.date,
+            text=message.text,
+        )

@@ -125,3 +125,7 @@ class ConversationService:
                 )
 
             await conn.commit()
+
+    def should_save(self, chat_id: int, user_id: int) -> bool:  # pylint: disable=unused-argument
+        """TODO: check if user wants to save his messages for the digest"""
+        return True
