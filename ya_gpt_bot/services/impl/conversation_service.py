@@ -1,5 +1,6 @@
 """Service to get and update conversations."""
 import datetime
+from textwrap import dedent
 from typing import Callable
 
 from sqlalchemy import delete, func, insert, select
@@ -12,27 +13,37 @@ from ya_gpt_bot.db.entities.conversation import t_conversation
 func: Callable
 
 MIN_TS_SQL = sa_text(
-    """
-with agg as (
-    select
-        user_from || ',' || coalesce(user_to, '') || ',' || text as full_message,
-        message_timestamp as ts
-    from
-        ya_gpt_bot.public.conversation c
-    where
-        chat_id = :chat_id
-),
-windowed as (
-    select
-        ts,
-        sum(length(full_message) + 1) over (order by ts desc) < :context_size as fit_in_context
-    from
-        agg
+    dedent(
+        # colon, colon and line break
+        """
+        with agg as (
+            select
+                length(user_from) + 1 + length(coalesce(user_to, '')) + 1 + length(text) + 1 as full_message_length,
+                message_timestamp as ts
+            from
+                ya_gpt_bot.public.conversation c
+            where
+                chat_id = :chat_id
+        ),
+        windowed as (
+            select
+                ts,
+                sum(full_message_length) over (order by ts desc) < :context_size as fit_in_context
+            from
+                agg
+        )
+        select min(ts) as min_ts
+        from windowed
+        where fit_in_context;
+        """
+    )
 )
-select min(ts) as min_ts
-from windowed
-where fit_in_context;
-"""
+
+# around 150 symbols
+PROMPT_INIT = (
+    "Сделай выжимку происходившего в чате используя "
+    "сsv лог с тремя колонками: от кого, кому, текст сообщения. "
+    "Сообщения идут в хронологическом порядке."
 )
 
 
@@ -41,13 +52,28 @@ class ConversationService:
 
     def __init__(self, engine: AsyncEngine):
         """init"""
-        self.__engine = engine
+        self._engine = engine
 
-    async def get_messages_within_context(self, chat_id: int, context_length: int) -> list[str]:
+    async def get_prompt(self, chat_id: int, context_length: int) -> str:
+        """get full prompt with pre-prompt substituted"""
+        messages = await self._get_messages_within_context(chat_id, context_length - len(PROMPT_INIT) - 1)
+        if not messages:
+            return ""
+        messages_joined = "\n".join(messages)
+        return dedent(
+            f"""
+            {PROMPT_INIT}
+            {messages_joined}
+            """
+        )
+
+    async def _get_messages_within_context(self, chat_id: int, all_messages_length: int) -> list[str]:
         """get messages withing defined context from the chat and clear messages that are out of context"""
-        async with self.__engine.connect() as conn:
-            result = (await conn.execute(MIN_TS_SQL, {"context_size": context_length, "chat_id": chat_id})).fetchone()
-            min_ts = result[0].replace(tzinfo=None) if result else None
+        async with self._engine.connect() as conn:
+            result = (
+                await conn.execute(MIN_TS_SQL, {"context_size": all_messages_length, "chat_id": chat_id})
+            ).fetchone()
+            min_ts = result[0] if result else None
 
             if min_ts:
                 full_message_expr = func.concat(
@@ -74,8 +100,8 @@ class ConversationService:
         self, chat_id: int, from_name: str, to_name: str, message_timestamp: datetime.datetime, text: str
     ):
         """save messages to conversation table"""
-        no_tz = message_timestamp.replace(tzinfo=None)
-        async with self.__engine.connect() as conn:
+        no_tz = message_timestamp
+        async with self._engine.connect() as conn:
             try:
                 await conn.execute(
                     insert(t_conversation).values(

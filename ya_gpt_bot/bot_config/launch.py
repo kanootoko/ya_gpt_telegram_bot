@@ -14,11 +14,11 @@ from ya_gpt_bot.bot_config.middlewares.logging import LoggingMiddleware
 from ya_gpt_bot.bot_config.middlewares.retrying import RetryingMiddleware
 from ya_gpt_bot.bot_config.utils.messages import get_should_ignore_func
 from ya_gpt_bot.config.app_config import AppConfig
+from ya_gpt_bot.services.impl.conversation_service import ConversationService
 from ya_gpt_bot.services.impl.messages_service import MessagesServicePostgres
 from ya_gpt_bot.services.impl.user_preferences_service import UserPreferencesServicePostgres
 from ya_gpt_bot.services.impl.user_service import UserServicePostgres
 
-from ..services.impl.conversation_service import ConversationService
 from .routers import routers_list
 
 

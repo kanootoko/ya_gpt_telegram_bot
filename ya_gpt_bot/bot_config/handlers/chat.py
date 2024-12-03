@@ -129,20 +129,11 @@ async def digest_request(
     gpt_client: GPTClient,
 ):
     """command for triggering chat digest"""
-    # around 150 symbols
-    prompt_init = (
-        "Сделай выжимку происходившего в чате используя"
-        + "сsv лог с тремя колонками: от кого, кому, текст сообщения."
-        + " Сообщения идут в хронологическом порядке."
-    )
     chat_id = message.chat.id
-    messages = await conversation_service.get_messages_within_context(chat_id, CONTEXT_LENGTH - len(prompt_init) - 1)
-    if not messages:
+    prompt = await conversation_service.get_prompt(chat_id, CONTEXT_LENGTH)
+    if not prompt:
         await message.bot.send_message(chat_id, text="Что-то пошло не так - ни одно сообщение не попало в контекст")
         return
-    messages_joined = "\n".join(messages)
-    prompt = f"""{prompt_init}
-{messages_joined}"""
     try:
         model_response = await gpt_client.request(prompt, creativity_override=0.0)
         await message.bot.send_message(chat_id, text=model_response)
