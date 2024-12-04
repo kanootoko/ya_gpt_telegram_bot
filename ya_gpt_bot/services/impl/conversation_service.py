@@ -4,7 +4,6 @@ from textwrap import dedent
 from typing import Callable
 
 from sqlalchemy import delete, func, insert, select
-from sqlalchemy import text as sa_text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -12,32 +11,6 @@ from ya_gpt_bot.db.entities.conversation import t_conversation
 
 func: Callable
 
-MIN_TS_SQL = sa_text(
-    dedent(
-        # colon, colon and line break
-        """
-        with agg as (
-            select
-                length(user_from) + 1 + length(coalesce(user_to, '')) + 1 + length(text) + 1 as full_message_length,
-                message_timestamp as ts
-            from
-                ya_gpt_bot.public.conversation c
-            where
-                chat_id = :chat_id
-        ),
-        windowed as (
-            select
-                ts,
-                sum(full_message_length) over (order by ts desc) < :context_size as fit_in_context
-            from
-                agg
-        )
-        select min(ts) as min_ts
-        from windowed
-        where fit_in_context;
-        """
-    )
-)
 
 # around 150 symbols
 PROMPT_INIT = (
@@ -70,8 +43,33 @@ class ConversationService:
     async def _get_messages_within_context(self, chat_id: int, all_messages_length: int) -> list[str]:
         """get messages withing defined context from the chat and clear messages that are out of context"""
         async with self._engine.connect() as conn:
+            agg_cte = (
+                select(
+                    (
+                        func.length(t_conversation.c.user_from)
+                        + 1
+                        + func.length(func.coalesce(t_conversation.c.user_to, ""))
+                        + 1
+                        + func.length(t_conversation.c.text)
+                        + 1
+                    ).label("full_message_length"),
+                    t_conversation.c.message_timestamp.label("ts"),
+                )
+                .where(t_conversation.c.chat_id == chat_id)
+                .cte("agg")
+            )
+
+            windowed_cte = select(
+                agg_cte.c.ts,
+                (
+                    func.sum(agg_cte.c.full_message_length).over(order_by=agg_cte.c.ts.desc()) < all_messages_length
+                ).label("fit_in_context"),
+            ).cte("windowed")
+
             result = (
-                await conn.execute(MIN_TS_SQL, {"context_size": all_messages_length, "chat_id": chat_id})
+                await conn.execute(
+                    select(func.min(windowed_cte.c.ts).label("min_ts")).where(windowed_cte.c.fit_in_context)
+                )
             ).fetchone()
             min_ts = result[0] if result else None
 
