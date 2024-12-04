@@ -128,14 +128,18 @@ async def digest_request(
     conversation_service: ConversationService,
     gpt_client: GPTClient,
 ):
-    """command for triggering chat digest"""
+    """Launch chat digest and delete saved history."""
     chat_id = message.chat.id
-    prompt = await conversation_service.get_prompt(chat_id, CONTEXT_LENGTH)
-    if not prompt:
+    messages = await conversation_service.get_chat_messages_history(chat_id, CONTEXT_LENGTH)
+    if not messages:
         await message.bot.send_message(chat_id, text="Что-то пошло не так - ни одно сообщение не попало в контекст")
         return
     try:
-        model_response = await gpt_client.request(prompt, creativity_override=0.0)
+        model_response = await gpt_client.request(
+            messages,
+            creativity_override=0.0,
+            instruction_text_override=conversation_service.get_instruction_prompt(),
+        )
         await message.bot.send_message(chat_id, text=model_response)
     except ya_exc.GenerationTimeoutError:
         await message.reply(responses.timeout_error)
@@ -143,7 +147,7 @@ async def digest_request(
 
 @chat_messages_router.message(F.text)
 async def save_conversation(message: Message, conversation_service: ConversationService):
-    """save every message for the later digest"""
+    """Save every message (except users who opted-out) for the later digest."""
     to_name = None if message.reply_to_message is None else message.reply_to_message.from_user.username
     if conversation_service.should_save(message.chat.id, message.from_user.id):
         await conversation_service.save_message(

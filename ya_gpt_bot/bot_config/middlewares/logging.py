@@ -9,6 +9,9 @@ from aiogram import BaseMiddleware
 from aiogram.types import Message, ReactionTypeEmoji, TelegramObject
 from loguru._logger import Logger
 
+from ya_gpt_bot.ya_gpt.exceptions import GPTInvalidPrompt
+from ya_gpt_bot.bot_config.texts import get_responses
+
 
 def _user_from_event(event: TelegramObject, log: Logger) -> str:
     if hasattr(event, "from_user"):
@@ -16,6 +19,9 @@ def _user_from_event(event: TelegramObject, log: Logger) -> str:
             return event.from_user.id
     log.debug("Cannot get user from event: {}", event)
     return "<unknown>"
+
+
+_responses = get_responses()
 
 
 class LoggingMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
@@ -48,6 +54,9 @@ class LoggingMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-metho
         start_time = time.time()
         try:
             result = await handler(event, data)
+        except GPTInvalidPrompt:
+            if isinstance(event, Message):
+                await event.reply(_responses.invalid_prompt_error)
         except Exception as exc:  # pylint: disable=broad-except
             logger.error("Exception '{!r}' on processing event {}", exc, event_id)
             logger.debug("Traceback: {}", traceback.format_exc())

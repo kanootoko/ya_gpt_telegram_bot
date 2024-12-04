@@ -21,6 +21,19 @@ class TextGenerationError(YaGPTError):
         return f"TextGenerationError(status: {self.stasus}, message: {self.message})"
 
 
+class GPTInvalidPrompt(YaGPTError):
+    """Error happened during text generation request."""
+
+    def __init__(self):
+        super().__init__(
+            400,
+            "it is not possible to generate response from the given request because it may violate the terms of usage",
+        )
+
+    def __str__(self) -> str:
+        return "GPTInvalidPrompt()"
+
+
 class ArtGenerationError(YaGPTError):
     """Error happened during art generation request."""
 
@@ -38,7 +51,7 @@ class ArtInvalidPrompt(ArtGenerationError):
 
     def __init__(self):
         super().__init__(
-            400, "it is not possible to generate an image from this request because it may violate the terms of use"
+            400, "it is not possible to generate an image from this request because it may violate the terms of usage"
         )
 
     def __str__(self) -> str:

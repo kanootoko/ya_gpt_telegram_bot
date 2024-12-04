@@ -27,6 +27,10 @@ from .models.text_generation import (
 )
 from .waiter import AsyncWaiterDummy
 
+CENSORED_RESULTS = {
+    "В интернете есть много сайтов с информацией на эту тему. [Посмотрите, что нашлось в поиске](https://ya.ru)",
+}
+
 
 class DummyGPTClient(GPTClient):
     """
@@ -119,11 +123,15 @@ class YaGPTClient(GPTClient):
             except pydantic.ValidationError as exc:
                 logger.debug("Response validation error ({}). Raw response: `{}`", exc, response_text.strip())
                 raise
+            if response.result.alternatives[0].message.text in CENSORED_RESULTS:
+                raise ya_exc.GPTInvalidPrompt()
             if response_http_status != 200:
                 if not (response.error.http_code or response.error.code or response.error.grpc_code):
                     response.error.http_code = response_http_status
                 return response.error
             return response.result
+        except ya_exc.YaGPTError:
+            raise
         except Exception as exc:
             logger.error("Could not execute YandexGPT text generation request: {!r}", exc)
             logger.debug("Traceback: {}", traceback.format_exc())
