@@ -14,6 +14,7 @@ from ya_gpt_bot.bot_config.middlewares.logging import LoggingMiddleware
 from ya_gpt_bot.bot_config.middlewares.retrying import RetryingMiddleware
 from ya_gpt_bot.bot_config.utils.messages import get_should_ignore_func
 from ya_gpt_bot.config.app_config import AppConfig
+from ya_gpt_bot.services.impl.conversation_service import ConversationService
 from ya_gpt_bot.services.impl.messages_service import MessagesServicePostgres
 from ya_gpt_bot.services.impl.user_preferences_service import UserPreferencesServicePostgres
 from ya_gpt_bot.services.impl.user_service import UserServicePostgres
@@ -46,6 +47,7 @@ async def run_bot(config: AppConfig, logger: Logger = global_logger) -> NoReturn
     user_service = UserServicePostgres(engine)
     user_preferences_service = UserPreferencesServicePostgres(engine)
     messages_service = MessagesServicePostgres(engine)
+    conversation_service = ConversationService(engine)
 
     dp = Dispatcher(
         gpt_client=gpt_client,
@@ -53,6 +55,7 @@ async def run_bot(config: AppConfig, logger: Logger = global_logger) -> NoReturn
         user_service=user_service,
         user_preferences_service=user_preferences_service,
         messages_service=messages_service,
+        conversation_service=conversation_service,
     )
 
     dp.include_routers(*routers_list)
