@@ -4,6 +4,7 @@ import datetime
 from textwrap import dedent
 from typing import Callable
 
+from aiogram.types import Message
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -141,6 +142,13 @@ class ConversationService:
             await conn.commit()
 
     # TODO: implement
-    def should_save(self, chat_id: int, user_id: int) -> bool:  # pylint: disable=unused-argument
+    def saving_text(self, message: Message) -> str | None:  # pylint: disable=unused-argument
         """Check if user wants to save their messages for the digest."""
-        return True
+        if message.chat.type == "private":
+            return None
+        text = message.text
+        if message.caption is not None:
+            text = f"(Изображение) {message.caption}"
+        if text is None or text == "":
+            return None
+        return text

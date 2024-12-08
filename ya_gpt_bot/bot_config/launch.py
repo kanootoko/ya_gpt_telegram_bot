@@ -9,6 +9,7 @@ from loguru import logger as global_logger
 from loguru._logger import Logger
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from ya_gpt_bot.bot_config.middlewares.digest import DigestHistorySavingMiddleware
 from ya_gpt_bot.bot_config.middlewares.generation_request import TreatPrefixesMiddleware
 from ya_gpt_bot.bot_config.middlewares.logging import LoggingMiddleware
 from ya_gpt_bot.bot_config.middlewares.retrying import RetryingMiddleware
@@ -71,7 +72,9 @@ async def run_bot(config: AppConfig, logger: Logger = global_logger) -> NoReturn
             get_should_ignore_func(config.tg_bot.ignore_prefixes, config.tg_bot.ignore_postfixes),
         )
     )
+    dp.message.outer_middleware(DigestHistorySavingMiddleware(conversation_service))
     dp.message.outer_middleware(RetryingMiddleware(config.tg_bot.max_retry_count))
+
 
     bot = Bot(config.tg_bot.token, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 
