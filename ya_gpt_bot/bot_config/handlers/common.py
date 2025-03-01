@@ -1,4 +1,4 @@
-"""Group messages handlers are defined here."""
+"""Common (group and direct) messages handlers are defined here."""
 
 from aiogram import Router
 from aiogram.filters import Command

@@ -1,4 +1,4 @@
-"""Chat messages handlers are defined here."""
+"""Group/supergroup/etc chat messages handlers are defined here."""
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -128,28 +128,18 @@ async def digest_request(
     conversation_service: ConversationService,
     gpt_client: GPTClient,
 ):
-    """command for triggering chat digest"""
+    """Launch chat digest and delete saved history."""
     chat_id = message.chat.id
-    prompt = await conversation_service.get_prompt(chat_id, CONTEXT_LENGTH)
-    if not prompt:
+    messages = await conversation_service.get_chat_messages_history(chat_id, CONTEXT_LENGTH)
+    if not messages:
         await message.bot.send_message(chat_id, text="Что-то пошло не так - ни одно сообщение не попало в контекст")
         return
     try:
-        model_response = await gpt_client.request(prompt, creativity_override=0.0)
-        await message.bot.send_message(chat_id, text=model_response)
+        model_response = await gpt_client.request(
+            messages,
+            creativity_override=0.0,
+            instruction_text_override=conversation_service.get_instruction_prompt(),
+        )
+        await reply_with_html_fallback(message, model_response)
     except ya_exc.GenerationTimeoutError:
         await message.reply(responses.timeout_error)
-
-
-@chat_messages_router.message(F.text)
-async def save_conversation(message: Message, conversation_service: ConversationService):
-    """save every message for the later digest"""
-    to_name = None if message.reply_to_message is None else message.reply_to_message.from_user.username
-    if conversation_service.should_save(message.chat.id, message.from_user.id):
-        await conversation_service.save_message(
-            chat_id=message.chat.id,
-            from_name=message.from_user.username,
-            to_name=to_name,
-            message_timestamp=message.date,
-            text=message.text,
-        )
