@@ -75,7 +75,6 @@ async def run_bot(config: AppConfig, logger: Logger = global_logger) -> NoReturn
     dp.message.outer_middleware(DigestHistorySavingMiddleware(conversation_service))
     dp.message.outer_middleware(RetryingMiddleware(config.tg_bot.max_retry_count))
 
-
     bot = Bot(config.tg_bot.token, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 
     logger.info("Starting polling Telegram bot.")

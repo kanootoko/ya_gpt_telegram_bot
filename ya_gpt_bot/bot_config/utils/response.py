@@ -22,12 +22,16 @@ def split_to_multiple_messages(text: str) -> list[str]:
     return texts
 
 
-async def reply_with_html_fallback(message: Message, text: str) -> Message:
+async def reply_with_html_fallback(message: Message, text: str) -> list[Message]:
     """Reply with a default parse_mode for client, on TelegramBadRequest error retry with HTML"""
     texts = split_to_multiple_messages(text)
+    messages: list[Message] = []
     for sending_text in texts:
         try:
-            return await message.reply(sending_text)
+            message = await message.reply(sending_text)
+            messages.append(message)
         except aiogram.exceptions.TelegramBadRequest as exc:
             logger.debug("Could not send response: {!r}. Trying with HTML parse_mode", exc)
-            return await message.reply(sending_text, parse_mode=ParseMode.HTML)
+            message = await message.reply(sending_text, parse_mode=ParseMode.HTML)
+            messages.append(message)
+    return messages

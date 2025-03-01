@@ -9,8 +9,9 @@ from aiogram import BaseMiddleware
 from aiogram.types import Message, ReactionTypeEmoji, TelegramObject
 from loguru._logger import Logger
 
-from ya_gpt_bot.ya_gpt.exceptions import GPTInvalidPrompt
 from ya_gpt_bot.bot_config.texts import get_responses
+from ya_gpt_bot.services.messages_service import MessagesService
+from ya_gpt_bot.ya_gpt.exceptions import GPTInvalidPrompt
 
 
 def _user_from_event(event: TelegramObject, log: Logger) -> str:
@@ -50,13 +51,19 @@ class LoggingMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-metho
         logger = self._logger.bind(event_id=event_id)
         data["logger"] = logger
 
+        messages_service: MessagesService = data["messages_service"]
+
         logger.info("User {} initiated event '{}'", _user_from_event(event, logger), type(event).__name__)
         start_time = time.time()
         try:
             result = await handler(event, data)
+            return result
         except GPTInvalidPrompt:
             if isinstance(event, Message):
-                await event.reply(_responses.invalid_prompt_error)
+                message = await event.reply(_responses.invalid_prompt_error)
+                await messages_service.save_message(
+                    message.message_id, event.message_id, event.chat.id, _responses.invalid_prompt_error, True
+                )
         except Exception as exc:  # pylint: disable=broad-except
             logger.error("Exception '{!r}' on processing event {}", exc, event_id)
             logger.debug("Traceback: {}", traceback.format_exc())
@@ -70,4 +77,3 @@ class LoggingMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-metho
             raise
         finally:
             logger.info("Event finished in {:.3f} seconds", time.time() - start_time)
-        return result

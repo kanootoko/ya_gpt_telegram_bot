@@ -15,7 +15,7 @@ class MessagesService(Protocol):
         raise NotImplementedError()
 
     @abstractmethod
-    async def save_message(  # pylint: disable=too-many-arguments
+    async def save_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         message_id: int,
         reply_id: int | None,

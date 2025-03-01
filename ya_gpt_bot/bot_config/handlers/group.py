@@ -1,6 +1,6 @@
 """Group/supergroup/etc chat messages handlers are defined here."""
 
-from aiogram import F, Router
+from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 from loguru._logger import Logger
@@ -77,7 +77,7 @@ async def set_chat_status_command(message: Message, user_service: UserService, l
 
 
 @chat_messages_router.message(GPTGenerationRequest())
-async def text_generation_request(  # pylint: disable=too-many-arguments
+async def text_generation_request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     message: Message,
     user_service: UserService,
     gpt_client: GPTClient,
@@ -116,8 +116,11 @@ async def text_generation_request(  # pylint: disable=too-many-arguments
             [e.message for e in dialog], preferences.temperature, preferences.instruction_text, preferences.timeout
         )
         logger.debug("Generation response: {}", response)
-        result = await reply_with_html_fallback(message, response)
-        await messages_service.save_message(result.message_id, message.message_id, message.chat.id, response, True)
+        results = await reply_with_html_fallback(message, response)
+        for result in results:
+            await messages_service.save_message(
+                result.message_id, result.reply_to_message.message_id, message.chat.id, response, True
+            )
     except ya_exc.GenerationTimeoutError:
         await message.reply(responses.timeout_error)
 
