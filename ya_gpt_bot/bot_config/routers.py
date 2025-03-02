@@ -1,10 +1,10 @@
 # pylint: disable=invalid-name
 """Bot aiogram routers are located here."""
 
-from .handlers.group import chat_messages_router
 from .handlers.common import common_messages_router
 from .handlers.direct import direct_messages_router
 from .handlers.fallback import fallback_router
+from .handlers.group import chat_messages_router
 
 routers_list = [
     chat_messages_router,

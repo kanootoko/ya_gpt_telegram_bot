@@ -30,7 +30,7 @@ DEFAULT_INSTRUCTION_PROMPT = dedent(
     В качестве символов разделителей списка, если они понадобятся, используй "-".
 
     Если в тексте сообщений поднимаются темы, которые нельзя обсуждать, просто игнорируй такие сообщения полностью, их суммаризировать не нужно.
-    """
+    """  # pylint: disable=line-too-long
 )
 
 
@@ -111,7 +111,7 @@ class ConversationService:
                 await conn.commit()
                 return [m[0] for m in select_results.fetchall()]
 
-    async def save_message(  # pylint: disable=too-many-arguments
+    async def save_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, chat_id: int, from_name: str, to_name: str, message_timestamp: datetime.datetime, text: str
     ):
         """Save messages to conversation table."""

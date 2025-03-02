@@ -20,7 +20,7 @@ class DialogEntry:
     from_self: bool
 
 
-async def save_message(  # pylint: disable=too-many-arguments
+async def save_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     conn: AsyncConnection,
     message_id: str,
     reply_id: str | None,
@@ -60,5 +60,13 @@ async def get_dialog(conn: AsyncConnection, chat_id: int, reply_id: str) -> list
 
     statement = select(cte_statement.union_all(recursive_part)).order_by(cte_statement.c.datetime)
 
-    dialog = [DialogEntry(entry[3], entry[4]) for entry in await conn.execute(statement)]
+    dialog: list[DialogEntry] = []
+    prev_from_self = True
+    for entry in await conn.execute(statement):
+        text, from_self = entry[3], entry[4]
+        if prev_from_self and from_self:
+            dialog[-1].message += f"\n{text}"
+        else:
+            dialog.append(DialogEntry(text, from_self))
+        prev_from_self = from_self
     return dialog

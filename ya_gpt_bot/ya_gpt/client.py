@@ -40,7 +40,7 @@ class DummyGPTClient(GPTClient):
     def __init__(self, waiter: AsyncWaiterDummy, *args, **kwargs):  # pylint: disable=unused-argument
         super().__init__(waiter)
 
-    async def _request(  # pylint: disable=too-many-arguments
+    async def _request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         request_dialog: list[str] | str,
         creativity_override: float | None = None,
@@ -59,7 +59,7 @@ class YaGPTClient(GPTClient):
     Docs: https://yandex.cloud/ru/docs/foundation-models/text-generation/api-ref/TextGeneration/completion
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         folder_id: str,
         auth_service: AuthService,
@@ -82,7 +82,7 @@ class YaGPTClient(GPTClient):
         """Close session."""
         await self.session.close()
 
-    async def request_raw(  # pylint: disable=too-many-arguments
+    async def request_raw(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         request_dialog: list[str],
         creativity_override: float | None = None,
@@ -137,7 +137,7 @@ class YaGPTClient(GPTClient):
             logger.debug("Traceback: {}", traceback.format_exc())
             raise ya_exc.TextGenerationError(response_http_status, str(exc)) from exc
 
-    async def _request(  # pylint: disable=too-many-arguments
+    async def _request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         request_dialog: list[str] | str,
         creativity_override: float | None = None,
@@ -167,7 +167,7 @@ class AsyncYaGPTClient(GPTClient):
     This is an experimental version as async requests are incredibly slower comparing to sync ones.
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         folder_id: str,
         auth_service: AuthService,
@@ -190,7 +190,7 @@ class AsyncYaGPTClient(GPTClient):
         """Close session."""
         await self.session.close()
 
-    async def request_raw(  # pylint: disable=too-many-arguments,too-many-locals
+    async def request_raw(  # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
         self,
         request_dialog: list[str],
         creativity_override: float | None = None,
@@ -266,7 +266,7 @@ class AsyncYaGPTClient(GPTClient):
             logger.debug("Traceback: {}", traceback.format_exc())
             raise ya_exc.TextGenerationError(response_http_status, str(exc)) from exc
 
-    async def _request(  # pylint: disable=too-many-arguments
+    async def _request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         request_dialog: list[str] | str,
         creativity_override: float | None = None,
@@ -293,7 +293,7 @@ class YaArtClient(ArtClient):
 
     Docs: https://yandex.cloud/ru/docs/foundation-models/image-generation/api-ref/ImageGenerationAsync/generate"""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         folder_id: str,
         auth_service: AuthService,
@@ -328,7 +328,7 @@ class YaArtClient(ArtClient):
         logger.info("Polling finished for request_id={}", request_id)
         return img
 
-    async def generation_request(  # pylint: disable=too-many-arguments
+    async def generation_request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         prompt: str,
         aspect_ratio: float | None = None,

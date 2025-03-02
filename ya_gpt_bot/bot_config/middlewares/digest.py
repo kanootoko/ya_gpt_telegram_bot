@@ -1,6 +1,6 @@
 """Digest history saving middleware is defined here."""
 
-from typing import Any, Awaitable, Callable, Literal
+from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware
 from aiogram.types import Message, TelegramObject
@@ -26,7 +26,7 @@ class DigestHistorySavingMiddleware(BaseMiddleware):  # pylint: disable=too-few-
         if isinstance(event, Message):
             try:
                 await self._handle_saving(event)
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-except
                 logger.warning("Could not save message for a digest: {!r}", exc)
         return await handler(event, data)
 

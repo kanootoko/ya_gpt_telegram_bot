@@ -18,7 +18,7 @@ class MessagesServicePostgres(MessagesService):
         async with self.engine.connect() as conn:
             return await db.get_dialog(conn, chat_id, reply_id)
 
-    async def save_message(  # pylint: disable=too-many-arguments
+    async def save_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         message_id: int,
         reply_id: int | None,
