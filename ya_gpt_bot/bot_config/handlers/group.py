@@ -15,7 +15,6 @@ from ya_gpt_bot.services.impl.conversation_service import ConversationService
 from ya_gpt_bot.services.messages_service import MessagesService
 from ya_gpt_bot.services.user_preferences_service import UserPreferencesService
 from ya_gpt_bot.services.user_service import UserService
-from ya_gpt_bot.ya_gpt import exceptions as ya_exc
 
 chat_messages_router = Router(name="group_messages_router")
 chat_messages_router.message.filter(~DirectMessage())
@@ -32,7 +31,7 @@ async def get_tg_id_command(message: Message) -> None:
         idx = message.reply_to_message.from_user.id
     else:
         idx = message.from_user.id
-    await message.reply(responses.reply_user_id(idx, message.reply_to_message is not None))
+    await message.reply(responses.reply_user_id(idx, message.reply_to_message is None))
 
 
 @chat_messages_router.message(Command("chat_id"))
@@ -111,18 +110,16 @@ async def text_generation_request(  # pylint: disable=too-many-arguments,too-man
 
     await message.bot.send_chat_action(message.chat.id, "typing")
     preferences = await user_preferences_service.get_preferences(message.from_user.id)
-    try:
-        response = await gpt_client.request(
-            [e.message for e in dialog], preferences.temperature, preferences.instruction_text, preferences.timeout
+
+    response = await gpt_client.request(
+        [e.message for e in dialog], preferences.temperature, preferences.instruction_text, preferences.timeout
+    )
+    logger.debug("Generation response: {}", response)
+    results = await reply_with_html_fallback(message, response)
+    for result in results:
+        await messages_service.save_message(
+            result.message_id, result.reply_to_message.message_id, message.chat.id, response, True
         )
-        logger.debug("Generation response: {}", response)
-        results = await reply_with_html_fallback(message, response)
-        for result in results:
-            await messages_service.save_message(
-                result.message_id, result.reply_to_message.message_id, message.chat.id, response, True
-            )
-    except ya_exc.GenerationTimeoutError:
-        await message.reply(responses.timeout_error)
 
 
 @chat_messages_router.message(Command("digest"))
@@ -137,12 +134,9 @@ async def digest_request(
     if not messages:
         await message.bot.send_message(chat_id, text="Что-то пошло не так - ни одно сообщение не попало в контекст")
         return
-    try:
-        model_response = await gpt_client.request(
-            messages,
-            creativity_override=0.0,
-            instruction_text_override=conversation_service.get_instruction_prompt(),
-        )
-        await reply_with_html_fallback(message, model_response)
-    except ya_exc.GenerationTimeoutError:
-        await message.reply(responses.timeout_error)
+    model_response = await gpt_client.request(
+        messages,
+        creativity_override=0.0,
+        instruction_text_override=conversation_service.get_instruction_prompt(),
+    )
+    await reply_with_html_fallback(message, model_response)
