@@ -1,7 +1,5 @@
 CODE_DIR := ya_gpt_bot
 
-DOCKER_USER_WITH_SLASH =
-
 format:
 	poetry run isort $(CODE_DIR)
 	poetry run black $(CODE_DIR)

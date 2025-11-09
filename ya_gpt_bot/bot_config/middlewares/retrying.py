@@ -4,6 +4,7 @@ import asyncio
 from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import TelegramObject
 from loguru._logger import Logger
 
@@ -12,7 +13,7 @@ from ya_gpt_bot.ya_gpt import exceptions as ya_exc
 
 def is_retryable(exc: Exception) -> bool:
     """Returns True if there is a sense in retrying the given exception cause."""
-    if isinstance(exc, ya_exc.GenerationTimeoutError):  # network flaps
+    if isinstance(exc, (ya_exc.GenerationTimeoutError, TelegramNetworkError)):  # network flaps
         return True
     if isinstance(exc, ya_exc.TextGenerationError) and exc.stasus == 500:  # model error
         return True

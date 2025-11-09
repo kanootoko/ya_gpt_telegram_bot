@@ -8,7 +8,7 @@ from loguru._logger import Logger
 
 from ya_gpt_bot.bot_config.filters import ArtGenerationRequest
 from ya_gpt_bot.bot_config.texts import get_responses
-from ya_gpt_bot.bot_config.utils.reactions import has_new_reaction
+from ya_gpt_bot.bot_config.utils.reactions import has_new_reaction, react_or_pass_on_fail
 from ya_gpt_bot.bot_config.utils.response import reply_with_html_fallback
 from ya_gpt_bot.bot_config.utils.text import strip_command_by_space
 from ya_gpt_bot.db.entities.enums import UserStatus
@@ -184,10 +184,7 @@ async def art_generation_request(
         img = await art_client.generate(text)
         logger.debug("Finished image generation")
         await message.reply_photo(BufferedInputFile(img, "generation.jpg"))
-        await message.react([])
+        await react_or_pass_on_fail(message, None, logger)
     except ya_exc.ArtInvalidPrompt:
         await message.reply(responses.invalid_prompt_error)
-        await message.react([ReactionTypeEmoji(emoji="👎")])
-    except ya_exc.GenerationTimeoutError:
-        await message.reply(responses.timeout_error)
-        await message.react([ReactionTypeEmoji(emoji="😢")])
+        await react_or_pass_on_fail(message, "👎", logger)

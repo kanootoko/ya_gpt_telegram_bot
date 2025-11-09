@@ -319,10 +319,13 @@ class YaArtClient(ArtClient):
     ) -> str:
         if "request_id" in kwargs:
             request_id = kwargs["request_id"]
-            logger.debug("Using request_id={} from outside for prompt: {}", request_id, prompt)
+            logger.info("Using request_id={} from outside for prompt: {}", request_id, prompt)
         else:
             logger.debug("Requesting image for prompt: {}", prompt)
-            request_id = await self.generation_request(prompt, aspect_ratio, seed)
+            try:
+                request_id = await self.generation_request(prompt, aspect_ratio, seed)
+            except asyncio.exceptions.TimeoutError as exc:
+                raise ya_exc.GenerationTimeoutError() from exc
             logger.info("Starting polling for image for request_id={}", request_id)
         img = await self.poll(request_id)
         logger.info("Polling finished for request_id={}", request_id)
@@ -406,7 +409,7 @@ class YaArtClient(ArtClient):
         except ya_exc.YaGPTError:
             raise
         except Exception as exc:
-            logger.error("Could not execute YandexGPT text generation request: {!r}", exc)
+            logger.error("Could not execute YandexGPT art generation request: {!r}", exc)
             logger.debug("Traceback: {}", traceback.format_exc())
             raise ya_exc.ArtGenerationError(response_http_status, str(exc)) from exc
 

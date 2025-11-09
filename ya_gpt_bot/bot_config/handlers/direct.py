@@ -15,7 +15,6 @@ from ya_gpt_bot.gpt.client import GPTClient
 from ya_gpt_bot.services.messages_service import MessagesService
 from ya_gpt_bot.services.user_preferences_service import UserPreferencesService
 from ya_gpt_bot.services.user_service import UserService
-from ya_gpt_bot.ya_gpt import exceptions as ya_exc
 
 direct_messages_router = Router(name="direct_messages_router")
 direct_messages_router.message.filter(DirectMessage())
@@ -99,16 +98,13 @@ async def text_generation_request(  # pylint: disable=too-many-arguments,too-man
     if text in ("", "None"):
         message.reply(responses.empty_request)
         return
-    try:
-        preferences = await user_preferences_service.get_preferences(message.from_user.id)
-        response = await gpt_client.request(
-            [e.message for e in dialog], preferences.temperature, preferences.instruction_text, preferences.timeout
+    preferences = await user_preferences_service.get_preferences(message.from_user.id)
+    response = await gpt_client.request(
+        [e.message for e in dialog], preferences.temperature, preferences.instruction_text, preferences.timeout
+    )
+    logger.debug("Generation response: {}", response)
+    results = await reply_with_html_fallback(message, response)
+    for result in results:
+        await messages_service.save_message(
+            result.message_id, result.reply_to_message.message_id, message.chat.id, response, True
         )
-        logger.debug("Generation response: {}", response)
-        results = await reply_with_html_fallback(message, response)
-        for result in results:
-            await messages_service.save_message(
-                result.message_id, result.reply_to_message.message_id, message.chat.id, response, True
-            )
-    except ya_exc.GenerationTimeoutError:
-        await message.reply(responses.timeout_error)
