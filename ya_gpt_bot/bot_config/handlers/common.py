@@ -32,7 +32,7 @@ async def help_command(message: Message) -> None:
 @common_messages_router.message(Command("commands"))
 async def commands_list_command(message: Message) -> None:
     """Return commands list message to the user."""
-    await message.reply(responses.commands)
+    await reply_with_html_fallback(message, responses.commands)
 
 
 @common_messages_router.message(Command("set_status", "set_user_status"))

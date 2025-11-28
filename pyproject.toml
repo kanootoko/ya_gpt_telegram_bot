@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ya-gpt-bot"
-version = "0.2.2"
+version = "0.2.3"
 description = "YandexGPT Telegram Bot"
 authors = ["Aleksei Sokol <kanootoko@gmail.com>"]
 license = "MIT"
