@@ -1,13 +1,16 @@
 [tool.poetry]
 name = "ya-gpt-bot"
-version = "0.3.0"
+version = "0.3.1"
 description = "YandexGPT Telegram Bot"
 authors = ["Aleksei Sokol <kanootoko@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+packages = [
+    { include = "ya_gpt_bot" }
+]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.12"
 aiogram = "^3.8"
 click = "^8.1.7"
 sqlalchemy = "^2.0.38"
