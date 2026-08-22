@@ -2,7 +2,7 @@
 
 from typing import Callable
 
-from sqlalchemy import TIMESTAMP, BigInteger, Boolean, Column, ForeignKeyConstraint, String, Table, func
+from sqlalchemy import TIMESTAMP, BigInteger, Boolean, Column, ForeignKeyConstraint, String, Table, func, null
 
 from ya_gpt_bot.db.metadata import metadata
 
@@ -17,6 +17,7 @@ t_messages = Table(
     Column("reply_id", BigInteger),
     Column("from_self", Boolean, nullable=False),
     Column("text", String, nullable=False),
+    Column("system_text", String, nullable=True, server_default=null()),
     Column("datetime", TIMESTAMP(True), nullable=False, server_default=func.now()),
     ForeignKeyConstraint(["chat_id", "reply_id"], ["messages.chat_id", "messages.id"]),
 )
@@ -28,5 +29,6 @@ Columns:
 - `reply_id` - identifier of a message which this message replies, big integer, optional
 - `user_id` - identifier of a concrete user who created a request, big integer
 - `text` - text of request, varchar
+- `system_text` - additional text passed as system prompt
 - `datetime` - time of request finish, timestamptz
 """

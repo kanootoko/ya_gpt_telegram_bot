@@ -1,7 +1,8 @@
 """Users preferences table is defined here."""
+
 from typing import Callable
 
-from sqlalchemy import CheckConstraint, Column, Float, ForeignKey, Integer, String, Table
+from sqlalchemy import Boolean, CheckConstraint, Column, False_, Float, ForeignKey, Integer, String, Table
 
 from ya_gpt_bot.db.metadata import metadata
 
@@ -14,8 +15,9 @@ t_user_preferences = Table(
     Column(
         "temperature", Float, CheckConstraint("temperature >= 0.0 AND temperature <= 1.0", "temperature_constraint")
     ),
-    Column("instruction_text", String(1024)),
+    Column("instruction_text", String(4096)),
     Column("timeout", Integer),
+    Column("ignore_quote", Boolean(), nullable=False, server_default=False_()),
 )
 """Users preferences which are used over bot defaults.
 
@@ -24,4 +26,5 @@ Columns:
 - `temperature` - temperature of YaGPT generation, float, 0.0 <= value <= 1.0
 - `instruction_text` - instruction text for YaGPT, varchar(1000)
 - `timeout` - timeout value for YaGPT generation, integer
+- `ignore_quote` - set to true to disable passing information about quoted message to the model
 """

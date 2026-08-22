@@ -24,7 +24,9 @@ async def get_preferences(conn: AsyncConnection, user_id: int) -> UserPreference
     )
     if preferences is None:
         return UserPreferences()
-    return UserPreferences(preferences["temperature"], preferences["instruction_text"], preferences["timeout"])
+    return UserPreferences(
+        preferences["temperature"], preferences["instruction_text"], preferences["timeout"], preferences["ignore_quote"]
+    )
 
 
 async def delete_preferences(conn: AsyncConnection, user_id: int) -> None:
@@ -64,3 +66,13 @@ async def set_request_timeout(conn: AsyncConnection, user_id: int, timeout: int)
     )
     if res.rowcount == 0:
         await conn.execute(insert(t_user_preferences).values(timeout=timeout, user_id=user_id))
+
+
+async def set_ignore_quote(conn: AsyncConnection, user_id: int, ignore_quote: bool) -> None:
+    """Set ignore_quote preference."""
+    await ensure_user_exists(conn, user_id)
+    res = await conn.execute(
+        update(t_user_preferences).values(ignore_quote=ignore_quote).where(t_user_preferences.c.user_id == user_id)
+    )
+    if res.rowcount == 0:
+        await conn.execute(insert(t_user_preferences).values(ignore_quote=ignore_quote, user_id=user_id))

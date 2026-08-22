@@ -8,10 +8,11 @@ from loguru._logger import Logger
 
 from ya_gpt_bot.bot_config.filters import DirectMessage, GPTGenerationRequest
 from ya_gpt_bot.bot_config.texts import get_responses
+from ya_gpt_bot.bot_config.utils.messages import form_system_text
 from ya_gpt_bot.bot_config.utils.response import reply_with_html_fallback
 from ya_gpt_bot.bot_config.utils.text import strip_command_by_space
 from ya_gpt_bot.db.entities.enums import ChatStatus, UserStatus
-from ya_gpt_bot.gpt.client import GPTClient
+from ya_gpt_bot.gpt.client import DialogEntry, GPTClient
 from ya_gpt_bot.services.messages_service import MessagesService
 from ya_gpt_bot.services.user_preferences_service import UserPreferencesService
 from ya_gpt_bot.services.user_service import UserService
@@ -79,17 +80,31 @@ async def text_generation_request(  # pylint: disable=too-many-arguments,too-man
     logger: Logger = global_logger,
 ) -> None:
     """Handle text generation request sending full request to GPTService."""
-    logger.info("Treating as a generation command from user: {}", message.text)
+    logger.info("Treating as a generation command from user: {}", text)
     status = await user_service.get_user_status(message.from_user.id, False)
     if status in (UserStatus.BLOCKED, UserStatus.PENDING, UserStatus.UNAUTHORIZED):
         await message.reply(responses.StatusOnGenerate.get(status))
         return
+    preferences = await user_preferences_service.get_preferences(message.from_user.id)
+
+    is_dialog_start = (
+        message.reply_to_message is None
+        or message.reply_to_message.from_user.id != message.bot.id
+        or text != (message.text or message.caption)  # command was explicitly called
+    )
+    system_text = form_system_text(preferences.ignore_quote, message, preferences.instruction_text, is_dialog_start)
+
     await messages_service.save_message(
-        message.message_id,
-        (message.reply_to_message.message_id if message.reply_to_message is not None else None),
-        message.chat.id,
-        text,
-        False,
+        message_id=message.message_id,
+        reply_id=(
+            message.reply_to_message.message_id
+            if message.reply_to_message is not None and not is_dialog_start
+            else None
+        ),
+        chat_id=message.chat.id,
+        text=text,
+        system_text=system_text,
+        from_self=False,
     )
     dialog = await messages_service.get_dialog(message.chat.id, message.message_id)
     logger.debug("Current dialog: {}", dialog)
@@ -98,13 +113,19 @@ async def text_generation_request(  # pylint: disable=too-many-arguments,too-man
     if text in ("", "None"):
         message.reply(responses.empty_request)
         return
-    preferences = await user_preferences_service.get_preferences(message.from_user.id)
     response = await gpt_client.request(
-        [e.message for e in dialog], preferences.temperature, preferences.instruction_text, preferences.timeout
+        [DialogEntry(e.message, e.system_text) for e in dialog],
+        preferences.temperature,
+        preferences.timeout,
     )
     logger.debug("Generation response: {}", response)
     results = await reply_with_html_fallback(message, response)
     for result in results:
         await messages_service.save_message(
-            result.message_id, result.reply_to_message.message_id, message.chat.id, response, True
+            message_id=result.message_id,
+            reply_id=result.reply_to_message.message_id,
+            chat_id=message.chat.id,
+            text=response,
+            system_text=None,
+            from_self=True,
         )

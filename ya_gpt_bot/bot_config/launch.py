@@ -4,6 +4,7 @@ from typing import NoReturn
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from loguru import logger as global_logger
 from loguru._logger import Logger
@@ -75,7 +76,11 @@ async def run_bot(config: AppConfig, logger: Logger = global_logger) -> NoReturn
     dp.message.outer_middleware(DigestHistorySavingMiddleware(conversation_service))
     dp.message.outer_middleware(RetryingMiddleware(config.tg_bot.max_retry_count))
 
-    bot = Bot(config.tg_bot.token, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
+    session = None
+    if config.tg_bot.proxy is not None:
+        session = session = AiohttpSession(proxy=config.tg_bot.proxy)
+
+    bot = Bot(config.tg_bot.token, session=session, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 
     logger.info("Starting polling Telegram bot.")
     try:

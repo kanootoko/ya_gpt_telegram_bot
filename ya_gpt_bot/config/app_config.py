@@ -159,6 +159,7 @@ class TgBotConfig:
     ignore_prefixes: list[str] = field(default_factory=list)
     ignore_postfixes: list[str] = field(default_factory=list)
     max_retry_count: int = 3
+    proxy: str | None = None
 
 
 @dataclass
@@ -227,7 +228,7 @@ class AppConfig:  # pylint: disable=too-many-instance-attributes
                         },
                     ),
                     ClassInitializer(
-                        "ya_gpt_bot.ya_gpt.client.YaGPTClient",
+                        "ya_gpt_bot.ya_gpt.client.AsyncYaGPTClient",
                         kwargs={
                             "host": "https://llm.api.cloud.yandex.net",
                             "folder_id": "yandex-cloud-folder-id",
@@ -246,7 +247,7 @@ class AppConfig:  # pylint: disable=too-many-instance-attributes
                         },
                     ),
                     ClassInitializer(
-                        "ya_gpt_bot.ya_gpt.client.YaArtClient",
+                        "ya_gpt_bot.ya_gpt.client.AsyncYaArtClient",
                         kwargs={
                             "host": "https://llm.api.cloud.yandex.net",
                             "folder_id": "yandex-cloud-folder-id",
@@ -263,6 +264,7 @@ class AppConfig:  # pylint: disable=too-many-instance-attributes
                 ignore_prefixes=["-"],
                 ignore_postfixes=["-"],
                 max_retry_count=3,
+                proxy="socks5://localhost:1080",
             ),
             LoggingConfig("INFO", sinks=[LoggingSink("DEBUG", "debug.log", "file")]),
         )

@@ -34,7 +34,7 @@ def _check_generation_commands(message: Message, data: dict[str, Any], prefixes:
     ):
         data["text"] = text
         data["is_gpt_request"] = True
-        return
+        # no return as "text" can be overwritten after
 
     # prefix checks
     t_lower = text.lower()

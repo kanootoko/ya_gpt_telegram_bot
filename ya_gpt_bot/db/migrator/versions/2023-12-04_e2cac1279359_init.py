@@ -65,7 +65,6 @@ def upgrade() -> None:
         sa.Column("from_self", sa.Boolean, nullable=False),
         sa.Column("text", sa.String(), nullable=False),
         sa.Column("datetime", sa.TIMESTAMP(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.ForeignKeyConstraint(["chat_id"], ["chats.id"], name=op.f("messages_fk_chat_id__chats")),
         sa.ForeignKeyConstraint(
             ["chat_id", "reply_id"], ["messages.chat_id", "messages.id"], name=op.f("messages_fk_reply_id__messages")
         ),

@@ -21,11 +21,21 @@ class MessagesServicePostgres(MessagesService):
     async def save_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         message_id: int,
+        *,
         reply_id: int | None,
         chat_id: int,
         text: str,
+        system_text: str | None,
         from_self: bool,
     ) -> None:
         """Save message (from user talking with GPT or model responsing to user)."""
         async with self.engine.connect() as conn:
-            await db.save_message(conn, message_id, reply_id, chat_id, text, from_self)
+            await db.save_message(
+                conn,
+                message_id=message_id,
+                reply_id=reply_id,
+                chat_id=chat_id,
+                text=text,
+                system_text=system_text,
+                from_self=from_self,
+            )

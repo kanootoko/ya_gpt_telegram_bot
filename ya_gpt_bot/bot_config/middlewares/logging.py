@@ -62,7 +62,12 @@ class LoggingMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-metho
             if isinstance(event, Message):
                 message = await event.reply(_responses.invalid_prompt_error)
                 await messages_service.save_message(
-                    message.message_id, event.message_id, event.chat.id, _responses.invalid_prompt_error, True
+                    message_id=message.message_id,
+                    reply_id=event.message_id,
+                    chat_id=event.chat.id,
+                    text=_responses.invalid_prompt_error,
+                    system_text=None,
+                    from_self=True,
                 )
         except Exception as exc:  # pylint: disable=broad-except
             logger.error("Exception '{!r}' on processing event {}", exc, event_id)

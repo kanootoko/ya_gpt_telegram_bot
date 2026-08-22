@@ -35,5 +35,10 @@ class UserPreferencesService(Protocol):
         """Set user timeout preference for YandexGPT request (used for debug purposes mostly)."""
         raise NotImplementedError()
 
+    @abstractmethod
+    async def set_ignore_quote(self, user_id: int, ignore_quote: bool) -> None:
+        """Set ignore_quote preference."""
+        raise NotImplementedError()
+
     async def shutdown(self) -> None:
         """Free the resources on exit."""

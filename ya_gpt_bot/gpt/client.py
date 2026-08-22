@@ -1,8 +1,17 @@
 """Abstract GPT client is defined here."""
 
 import abc
+from dataclasses import dataclass
 
 from .waiter import AsyncWaiter
+
+
+@dataclass
+class DialogEntry:
+    """Dialog entry with indication whether the message was sent by the GPT bot."""
+
+    message: str
+    system_text: str | None
 
 
 class GPTClient(abc.ABC):
@@ -17,9 +26,8 @@ class GPTClient(abc.ABC):
     @abc.abstractmethod
     async def _request(
         self,
-        request_dialog: list[str] | str,
+        request_dialog: list[DialogEntry],
         creativity_override: float | None = None,
-        instruction_text_override: str | None = None,
         timeout_override: int | None = None,
         **kwargs,
     ) -> str:
@@ -27,19 +35,18 @@ class GPTClient(abc.ABC):
 
     async def request(
         self,
-        request_dialog: list[str] | str,
+        request_dialog: list[DialogEntry] | str,
         creativity_override: float | None = None,
-        instruction_text_override: str | None = None,
         timeout_override: int | None = None,
         **kwargs,
     ) -> str:
-        """Perform a request to GPT service getting a result answering the given prompt. If dialog is given,
+        """Perform a request to GPT service getting a result answering the given prompt. If dialog list is given,
         it must start and finish with a user message.
         """
+        if isinstance(request_dialog, str):
+            request_dialog = [DialogEntry(request_dialog, None)]
         async with self.waiter:
-            return await self._request(
-                request_dialog, creativity_override, instruction_text_override, timeout_override, **kwargs
-            )
+            return await self._request(request_dialog, creativity_override, timeout_override, **kwargs)
 
     async def close(self) -> None:
         """Free the resources on exit."""

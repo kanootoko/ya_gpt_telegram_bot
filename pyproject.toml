@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ya-gpt-bot"
-version = "0.2.3"
+version = "0.3.0"
 description = "YandexGPT Telegram Bot"
 authors = ["Aleksei Sokol <kanootoko@gmail.com>"]
 license = "MIT"
@@ -20,6 +20,7 @@ pyyaml = "^6.0.1"
 frozenlist = "^1.5.0"
 multidict = "^6.1.0"
 yarl = "^1.18.3"
+aiohttp-socks = "^0.12.0"
 
 
 [tool.poetry.group.dev.dependencies]

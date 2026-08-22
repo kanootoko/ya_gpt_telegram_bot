@@ -42,5 +42,11 @@ class UserPreferencesServicePostgres(UserPreferencesService):
             await conn.commit()
             return res
 
+    async def set_ignore_quote(self, user_id: int, ignore_quote: bool) -> None:
+        async with self.engine.connect() as conn:
+            res = await db.set_ignore_quote(conn, user_id, ignore_quote)
+            await conn.commit()
+            return res
+
     async def shutdown(self) -> None:
         await self.engine.dispose()

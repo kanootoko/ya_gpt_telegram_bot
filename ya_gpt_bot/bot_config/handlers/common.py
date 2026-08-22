@@ -76,7 +76,7 @@ async def get_preferences_command(message: Message, user_preferences_service: Us
     await reply_with_html_fallback(
         message,
         responses.Preferences.format_preferences(
-            preferences.temperature, preferences.instruction_text, preferences.timeout
+            preferences.temperature, preferences.instruction_text, preferences.timeout, preferences.ignore_quote
         ),
     )
 
@@ -104,7 +104,7 @@ async def set_instruction_text_command(message: Message, user_preferences_servic
         await user_preferences_service.set_instruction_text(message.from_user.id, None)
         await message.reply(responses.Preferences.success_reset)
         return
-    if len(text) >= 1024:
+    if len(text) > 4096:
         await message.reply(responses.Preferences.too_long_instruction_text)
         return
     await user_preferences_service.set_instruction_text(message.from_user.id, text)
@@ -124,6 +124,22 @@ async def set_timeout_command(message: Message, user_preferences_service: UserPr
         return
     await user_preferences_service.set_request_timeout(message.from_user.id, int(text))
     await message.reply(responses.Preferences.success_updated)
+
+
+@common_messages_router.message(Command("set_ignore_quote"))
+async def set_ignore_quote_command(message: Message, user_preferences_service: UserPreferencesService) -> None:
+    """Toggle ignore_quote preference for user."""
+    text = strip_command_by_space(message.text or "")
+    if text == "":
+        current_preferences = await user_preferences_service.get_preferences(message.from_user.id)
+        await user_preferences_service.set_ignore_quote(message.from_user.id, not current_preferences.ignore_quote)
+        await message.reply(responses.Preferences.ignore_quote_set(not current_preferences.ignore_quote))
+        return
+    new_value = False
+    if text.lower() in ("1", "on", "true"):
+        new_value = True
+    await user_preferences_service.set_ignore_quote(message.from_user.id, new_value)
+    await message.reply(responses.Preferences.ignore_quote_set(new_value))
 
 
 @common_messages_router.message(Command("reset_preferences"))
@@ -176,6 +192,7 @@ async def art_generation_request(
         and chat_status != ChatStatus.AUTHORIZED
     ):
         await message.reply(responses.StatusRequest.pending)
+        return
 
     await message.react([ReactionTypeEmoji(emoji="👀")])
 

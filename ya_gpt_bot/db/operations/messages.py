@@ -17,25 +17,39 @@ class DialogEntry:
     """Dialog entry with indication whether the message was sent by the GPT bot."""
 
     message: str
+    system_text: str | None
     from_self: bool
 
 
 async def save_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     conn: AsyncConnection,
     message_id: str,
+    *,
     reply_id: str | None,
     chat_id: str,
     text: str,
+    system_text: str | None,
     from_self: bool,
 ) -> None:
     """Save message (from user talking with GPT or model responsing to user)."""
     try:
         await conn.execute(
-            insert(t_messages).values(id=message_id, reply_id=reply_id, chat_id=chat_id, text=text, from_self=from_self)
+            insert(t_messages).values(
+                id=message_id,
+                reply_id=reply_id,
+                chat_id=chat_id,
+                text=text,
+                system_text=system_text,
+                from_self=from_self,
+            )
         )
     except IntegrityError:
         await conn.rollback()
-        await conn.execute(insert(t_messages).values(id=message_id, chat_id=chat_id, text=text, from_self=from_self))
+        await conn.execute(
+            insert(t_messages).values(
+                id=message_id, chat_id=chat_id, text=text, system_text=system_text, from_self=from_self
+            )
+        )
 
     await conn.commit()
 
@@ -47,6 +61,7 @@ async def get_dialog(conn: AsyncConnection, chat_id: int, reply_id: str) -> list
         t_messages.c.id,
         t_messages.c.reply_id,
         t_messages.c.text,
+        t_messages.c.system_text,
         t_messages.c.from_self,
         t_messages.c.datetime,
     )
@@ -63,10 +78,12 @@ async def get_dialog(conn: AsyncConnection, chat_id: int, reply_id: str) -> list
     dialog: list[DialogEntry] = []
     prev_from_self = True
     for entry in await conn.execute(statement):
-        text, from_self = entry[3], entry[4]
+        text, system_text, from_self = entry.text, entry.system_text, entry.from_self
         if prev_from_self and from_self:
             dialog[-1].message += f"\n{text}"
         else:
-            dialog.append(DialogEntry(text, from_self))
+            dialog.append(DialogEntry(text, system_text, from_self))
+        if system_text is not None:
+            dialog[-1].system_text = system_text
         prev_from_self = from_self
     return dialog

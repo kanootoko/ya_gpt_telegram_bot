@@ -18,9 +18,11 @@ class MessagesService(Protocol):
     async def save_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         message_id: int,
+        *,
         reply_id: int | None,
         chat_id: int,
         text: str,
+        system_text: str | None,
         from_self: bool,
     ) -> None:
         """Save message (from user talking with GPT or model responsing to user)."""

@@ -51,3 +51,4 @@ class UserPreferences:
     temperature: float | None = None
     instruction_text: str | None = None
     timeout: str | None = None
+    ignore_quote: bool = False

@@ -11,7 +11,7 @@ import pydantic
 from loguru import logger as global_logger
 from loguru._logger import Logger
 
-from ya_gpt_bot.gpt.client import ArtClient, GPTClient
+from ya_gpt_bot.gpt.client import ArtClient, DialogEntry, GPTClient
 from ya_gpt_bot.gpt.waiter import AsyncWaiter
 from ya_gpt_bot.ya_gpt import exceptions as ya_exc
 from ya_gpt_bot.ya_gpt.models.art_generation import ArtGenerationRequest
@@ -29,6 +29,8 @@ from .waiter import AsyncWaiterDummy
 
 CENSORED_RESULTS = {
     "В интернете есть много сайтов с информацией на эту тему. [Посмотрите, что нашлось в поиске](https://ya.ru)",
+    "Я не могу обсуждать эту тему. Давайте поговорим о чём-нибудь ещё.",
+    "Я не могу сгенерировать это изображение. Давайте попробуем другую тему.",
 }
 
 
@@ -42,9 +44,8 @@ class DummyGPTClient(GPTClient):
 
     async def _request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
-        request_dialog: list[str] | str,
+        request_dialog: list[DialogEntry],
         creativity_override: float | None = None,
-        instruction_text_override: str | None = None,
         timeout_override: int | None = None,
         logger: Logger = global_logger,  # pylint: disable=unused-argument
         **kwargs,
@@ -84,9 +85,8 @@ class YaGPTClient(GPTClient):
 
     async def request_raw(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
-        request_dialog: list[str],
+        request_dialog: list[DialogEntry],
         creativity_override: float | None = None,
-        instruction_text_override: str | None = None,
         timeout_override: int | None = None,
         logger: Logger = global_logger,
     ) -> TextGenerationResult | TextGenerationError:
@@ -98,13 +98,13 @@ class YaGPTClient(GPTClient):
                 modelUri=f"gpt://{self.folder_id}/{self.model}",
                 completionOptions=CompletionOptions(temperature=creativity_override or self.creativity),
             )
-            if instruction_text_override or self.instruction_text:
-                request.add_system_message(instruction_text_override or self.instruction_text)
-            for i, message in enumerate(request_dialog):
+            for i, entry in enumerate(request_dialog):
                 if i % 2 == 0:
-                    request.add_user_message(message)
+                    if entry.system_text is not None:
+                        request.add_system_message(entry.system_text)
+                    request.add_user_message(entry.message)
                 else:
-                    request.add_assistant_message(message)
+                    request.add_assistant_message(entry.message)
             async with self.session.post(
                 "/foundationModels/v1/completion",
                 headers={
@@ -123,6 +123,9 @@ class YaGPTClient(GPTClient):
             except pydantic.ValidationError as exc:
                 logger.debug("Response validation error ({}). Raw response: `{}`", exc, response_text.strip())
                 raise
+            if response.result is None:
+                logger.warning("response result is empty: {}", response)
+                raise ya_exc.TextGenerationError(500, "empty response result")
             if response.result.alternatives[0].message.text in CENSORED_RESULTS:
                 raise ya_exc.GPTInvalidPrompt()
             if response_http_status != 200:
@@ -139,18 +142,15 @@ class YaGPTClient(GPTClient):
 
     async def _request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
-        request_dialog: list[str] | str,
+        request_dialog: list[DialogEntry],
         creativity_override: float | None = None,
-        instruction_text_override: str | None = None,
         timeout_override: int | None = None,
         logger: Logger = global_logger,
         **kwargs,
     ) -> str:
         if isinstance(request_dialog, str):
             request_dialog = [request_dialog]
-        response = await self.request_raw(
-            request_dialog, creativity_override, instruction_text_override, timeout_override, logger=logger
-        )
+        response = await self.request_raw(request_dialog, creativity_override, timeout_override, logger=logger)
         if isinstance(response, TextGenerationError):
             raise ya_exc.TextGenerationError(
                 response.http_code or response.code or response.grpc_code, response.message
@@ -190,9 +190,10 @@ class AsyncYaGPTClient(GPTClient):
         """Close session."""
         await self.session.close()
 
-    async def request_raw(  # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments,too-many-branches
+    async def request_raw(
         self,
-        request_dialog: list[str],
+        request_dialog: list[DialogEntry],
         creativity_override: float | None = None,
         instruction_text_override: str | None = None,
         timeout_override: int | None = None,
@@ -208,11 +209,13 @@ class AsyncYaGPTClient(GPTClient):
             )
             if instruction_text_override or self.instruction_text:
                 request.add_system_message(instruction_text_override or self.instruction_text)
-            for i, message in enumerate(request_dialog):
+            for i, entry in enumerate(request_dialog):
                 if i % 2 == 0:
-                    request.add_user_message(message)
+                    request.add_user_message(entry.message)
+                    if entry.system_text is not None:
+                        request.add_system_message(entry.system_text)
                 else:
-                    request.add_assistant_message(message)
+                    request.add_assistant_message(entry.message)
             async with self.session.post(
                 "/foundationModels/v1/completionAsync",
                 headers={
@@ -268,18 +271,13 @@ class AsyncYaGPTClient(GPTClient):
 
     async def _request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
-        request_dialog: list[str] | str,
+        request_dialog: list[DialogEntry],
         creativity_override: float | None = None,
-        instruction_text_override: str | None = None,
         timeout_override: int | None = None,
         logger: Logger = global_logger,
         **_kwargs,
     ) -> str:
-        if isinstance(request_dialog, str):
-            request_dialog = [request_dialog]
-        response = await self.request_raw(
-            request_dialog, creativity_override, instruction_text_override, timeout_override, logger=logger
-        )
+        response = await self.request_raw(request_dialog, creativity_override, timeout_override, logger=logger)
         if isinstance(response, TextGenerationError):
             raise ya_exc.TextGenerationError(
                 response.http_code or response.code or response.grpc_code, response.message
@@ -360,11 +358,7 @@ class YaArtClient(ArtClient):
         if response_http_status != 200:
             try:
                 response_json = json.loads(response_text)
-                if (
-                    "error" in response_json
-                    and response_json["error"] == "it is not possible to generate an image from this"
-                    " request because it may violate the terms of use"
-                ):
+                if "error" in response_json and response_json["error"] in CENSORED_RESULTS:
                     raise ya_exc.ArtInvalidPrompt()
             except ya_exc.ArtInvalidPrompt:
                 raise

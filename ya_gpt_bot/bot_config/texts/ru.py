@@ -64,24 +64,37 @@ class Preferences:
     """Set user preferences command responses"""
 
     wrong_format_temperature = "Неверный формат значения, необходимо вещественное число в пределах от 0.0 до 1.0."
-    too_long_instruction_text = "Ограничение сверху на длину текста - 1024 символа."
+    too_long_instruction_text = "Ограничение сверху на длину текста - 4096 символов."
     wrong_format_timeout = "Неверный формат значения, необходимо целое число."
     success_updated = "Значение параметра обновлено."
     success_reset = "Значение параметра сброшено."
     success_reset_all = "Значения всех параметров сброшены."
 
     @staticmethod
-    def format_preferences(temperature: str | None, instruction_text: str | None, timeout: int | None) -> str:
+    def format_preferences(
+        temperature: str | None, instruction_text: str | None, timeout: int | None, ignore_quote: bool
+    ) -> str:
         """Return formatted preferences string."""
-        if temperature is None and instruction_text is None and timeout is None:
-            return "Используются настройки по-умолчанию"
+        if temperature is None and instruction_text is None and timeout is None and not ignore_quote:
+            return "Используются настройки по умолчанию"
         return "Текущие значения настроек пользователя:\n" + "\n".join(
-            [
-                (f" - temperature: {temperature}" if temperature is not None else ""),
-                (f" - instruction_text: {instruction_text}" if instruction_text is not None else ""),
-                (f" - timeout: {timeout}" if timeout is not None else ""),
-            ]
+            filter(
+                lambda s: s != "",
+                [
+                    (f" - temperature: {temperature}" if temperature is not None else ""),
+                    (f" - instruction_text: {instruction_text}" if instruction_text is not None else ""),
+                    (f" - timeout: {timeout}" if timeout is not None else ""),
+                    (f" - ignore_quote: {ignore_quote}" if ignore_quote else ""),
+                ],
+            )
         )
+
+    @staticmethod
+    def ignore_quote_set(ignore_quote: bool) -> str:
+        """Return formatted preferences string."""
+        if ignore_quote:
+            return "Сообщения, на которые вы отвечаете при вызове бота, не будут учитываться"
+        return "Сообщения, на которые вы отвечаете при вызове бота, будут отправляться в модель"
 
 
 help = (
@@ -101,6 +114,7 @@ commands = """
 **/set_instructions** - установить пре-промпт к своим запросам
 **/reset_preferences** - сбросить значения параметров в значения по умолчанию
 **/set_timeout** - установить таймаут на выполнение своих запросов (для дебага)
+**/set_ignore_quote** - не передавать сообщение-ответ и конкретную цитату в модель
 **/get_preferences** - получить значения своих личных настроек
 **/digest** - краткий пересказ последних событий чата
 
