@@ -35,7 +35,7 @@ class GPTClient(abc.ABC):
 
     async def request(
         self,
-        request_dialog: list[DialogEntry] | str,
+        request_dialog: list[DialogEntry] | DialogEntry | str,
         creativity_override: float | None = None,
         timeout_override: int | None = None,
         **kwargs,
@@ -45,6 +45,8 @@ class GPTClient(abc.ABC):
         """
         if isinstance(request_dialog, str):
             request_dialog = [DialogEntry(request_dialog, None)]
+        elif isinstance(request_dialog, DialogEntry):
+            request_dialog = [request_dialog]
         async with self.waiter:
             return await self._request(request_dialog, creativity_override, timeout_override, **kwargs)
 

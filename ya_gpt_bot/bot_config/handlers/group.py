@@ -22,7 +22,7 @@ chat_messages_router.message.filter(~DirectMessage())
 
 responses = get_responses()
 
-CONTEXT_LENGTH = 2**13
+CONTEXT_LENGTH = 2**14
 
 
 @chat_messages_router.message(Command("tg_id"))
@@ -154,13 +154,12 @@ async def digest_request(
 ):
     """Launch chat digest and delete saved history."""
     chat_id = message.chat.id
-    messages = await conversation_service.get_chat_messages_history(chat_id, CONTEXT_LENGTH)
-    if not messages:
+    joined_messages = await conversation_service.get_chat_messages_history(chat_id, CONTEXT_LENGTH)
+    if not joined_messages:
         await message.bot.send_message(chat_id, text="Что-то пошло не так - ни одно сообщение не попало в контекст")
         return
     model_response = await gpt_client.request(
-        messages,
+        DialogEntry(joined_messages, system_text=conversation_service.get_instruction_prompt()),
         creativity_override=0.0,
-        instruction_text_override=conversation_service.get_instruction_prompt(),
     )
     await reply_with_html_fallback(message, model_response)
