@@ -48,7 +48,7 @@ def form_system_text(
     ):
         text = message.reply_to_message.text or message.reply_to_message.caption
         if text != "":
-            system_text = (
+            system_text += (
                 "\n\nПользователь прикладывает сообщение из чата, ссылаясь на него"
                 f' (далее в рамках ограничителей "{sep}"):\n{sep}\n{text}\n{sep}'
             )
