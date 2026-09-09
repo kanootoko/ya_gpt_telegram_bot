@@ -286,10 +286,10 @@ class AsyncYaGPTClient(GPTClient):
 
 
 class YaArtClient(ArtClient):
-    """YandexART client
-    Fetches request id from generation reuqsts and polls it
+    """Yandex OpenAI-compatible Images client.
 
-    Docs: https://yandex.cloud/ru/docs/foundation-models/image-generation/api-ref/ImageGenerationAsync/generate"""
+    Docs: https://aistudio.yandex.ru/ru/docs/ai-studio/api/Images/createImage
+    """
 
     def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
@@ -297,9 +297,8 @@ class YaArtClient(ArtClient):
         auth_service: AuthService,
         waiter: AsyncWaiter,
         model: str,
-        host: str = "https://llm.api.cloud.yandex.net",
+        host: str = "https://ai.api.cloud.yandex.net",
     ):
-        """Initialize with setting waiter."""
         super().__init__(waiter)
         self.model = model.strip("/")
         self.folder_id = folder_id.strip("/")
@@ -311,101 +310,78 @@ class YaArtClient(ArtClient):
         self,
         prompt: str,
         aspect_ratio: float | None = None,
-        seed: float | None = None,
         logger: Logger = global_logger,
         **kwargs,
-    ) -> str:
-        if "request_id" in kwargs:
-            request_id = kwargs["request_id"]
-            logger.info("Using request_id={} from outside for prompt: {}", request_id, prompt)
-        else:
-            logger.debug("Requesting image for prompt: {}", prompt)
-            try:
-                request_id = await self.generation_request(prompt, aspect_ratio, seed)
-            except asyncio.exceptions.TimeoutError as exc:
-                raise ya_exc.GenerationTimeoutError() from exc
-            logger.info("Starting polling for image for request_id={}", request_id)
-        img = await self.poll(request_id)
-        logger.info("Polling finished for request_id={}", request_id)
-        return img
+    ) -> bytes:
+        return await self.generation_request(prompt, aspect_ratio, logger=logger, **kwargs)
 
     async def generation_request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         prompt: str,
         aspect_ratio: float | None = None,
-        seed: float | None = None,
-        timeout: int = 30,
+        timeout: int = 120,
         logger: Logger = global_logger,
-    ) -> str:
-        """Perform generation request and return request_id for polling."""
+    ) -> bytes:
+        """Generate an image directly."""
+        request = ArtGenerationRequest.from_single_message(prompt, f"art://{self.folder_id}/{self.model}", aspect_ratio)
+        return await self._request_image(
+            "/v1/images/generations", json=request.model_dump(), timeout=timeout, logger=logger
+        )
 
-        model = f"art://{self.folder_id}/{self.model}"
-        request = ArtGenerationRequest.from_single_message(prompt, model, aspect_ratio, seed)
-        logger.debug("Requesting art generation with following request: {}", request)
-        async with self.session.post(
-            "/foundationModels/v1/imageGenerationAsync",
-            headers={
-                "Authorization": f"Bearer {self.auth_service.get_iam()}",
-                "x-folder-id": self.folder_id,
-                "Content-Type": "application/json",
-            },
-            data=json.dumps(request.model_dump(), ensure_ascii=True),
-            timeout=timeout,
-        ) as response_raw:
-            response_text = await response_raw.text()
-            response_http_status = response_raw.status
+    async def _request_image(
+        self,
+        endpoint: str,
+        *,
+        timeout: int = 120,
+        logger: Logger = global_logger,
+        **request_kwargs,
+    ) -> bytes:
+        """Shared transport/decoding for Images endpoints, including future multipart edits.
 
-        if response_http_status != 200:
-            try:
-                response_json = json.loads(response_text)
-                if "error" in response_json and response_json["error"] in CENSORED_RESULTS:
-                    raise ya_exc.ArtInvalidPrompt()
-            except ya_exc.ArtInvalidPrompt:
-                raise
-            except Exception:  # pylint: disable=broad-except
-                pass
-            raise ya_exc.ArtGenerationError(response_http_status, response_text)
-
-        res = AsyncGenerationOperationResponse.model_validate_json(response_text)
-
-        return res.id
-
-    async def poll(self, request_id: str, timeout: int = 30, logger: Logger = global_logger) -> bytes:
-        """Return raw jpeg image data from request after polling.
-
-        If timeout is reached, GenerationTimeoutError is raised.
+        Pass json= for generation or data= for multipart requests. Let aiohttp set
+        Content-Type so a future edit request retains its multipart boundary.
         """
-        polling_start = time.time()
+        response_http_status = 0
         try:
-            while time.time() - polling_start < timeout:
-                async with self.session.get(
-                    f"/operations/{request_id}", headers={"Authorization": f"Bearer {self.auth_service.get_iam()}"}
-                ) as response_raw:
-                    response_text = await response_raw.text()
-                    response_http_status = response_raw.status
-
-                if response_http_status != 200:
-                    raise ya_exc.ArtGenerationError(response_http_status, response_text)
-
+            async with self.session.post(
+                endpoint,
+                headers={
+                    "Authorization": f"Bearer {self.auth_service.get_iam()}",
+                    "x-folder-id": self.folder_id,
+                },
+                timeout=aiohttp.ClientTimeout(total=timeout),
+                **request_kwargs,
+            ) as response_raw:
+                response_http_status = response_raw.status
+                response_text = await response_raw.text()
+            if response_http_status != 200:
                 try:
-                    response = AsyncGenerationOperationResponse.model_validate_json(response_text)
-                except pydantic.ValidationError as exc:
-                    logger.debug("Response validation error ({}). Raw response: `{}`", exc, response_text.strip())
-                    raise
-                if not response.done:
-                    await asyncio.sleep(min(timeout / 10, 10))
-                    continue
+                    error = json.loads(response_text).get("error", {})
+                except (ValueError, AttributeError):
+                    error = {}
+                message = error.get("message") if isinstance(error, dict) else error
+                code = error.get("code") if isinstance(error, dict) else None
+                if (isinstance(message, str) and message in CENSORED_RESULTS) or code == "content_policy_violation":
+                    raise ya_exc.ArtInvalidPrompt()
+                raise ya_exc.ArtGenerationError(response_http_status, response_text)
+            return self._decode_image(response_text)
+        except asyncio.TimeoutError as exc:
+            raise ya_exc.GenerationTimeoutError() from exc
+        except (aiohttp.ClientError, ValueError, TypeError, KeyError, IndexError) as exc:
+            logger.error("Could not execute Images request: {}", type(exc).__name__)
+            raise ya_exc.ArtGenerationError(
+                response_http_status, "Invalid Images response or transport failure"
+            ) from exc
 
-                image_jpeg = base64.decodebytes(response.response["image"].encode("utf-8"))
-                generation_result = image_jpeg
-                return generation_result
-            raise ya_exc.GenerationTimeoutError()
-        except ya_exc.YaGPTError:
-            raise
-        except Exception as exc:
-            logger.error("Could not execute YandexGPT art generation request: {!r}", exc)
-            logger.debug("Traceback: {}", traceback.format_exc())
-            raise ya_exc.ArtGenerationError(response_http_status, str(exc)) from exc
+    @staticmethod
+    def _decode_image(response_text: str) -> bytes:
+        """Decode the common Images response used by generation and editing."""
+        response = json.loads(response_text)
+        encoded = response["data"][0]["b64_json"]
+        if not isinstance(encoded, str) or not encoded:
+            raise ValueError("Images response contains no base64 image")
+        return base64.b64decode(encoded, validate=True)
 
     async def close(self) -> None:
         """Free the resources on exit."""
+        await self.session.close()

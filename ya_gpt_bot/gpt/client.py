@@ -66,21 +66,19 @@ class ArtClient(abc.ABC):
         self,
         prompt: str,
         aspect_ratio: float | None = None,
-        seed: float | None = None,
         **kwargs,
-    ) -> str:
+    ) -> bytes:
         raise NotImplementedError()
 
     async def generate(
         self,
         prompt: str,
         aspect_ratio: float | None = None,
-        seed: float | None = None,
         **kwargs,
     ) -> bytes:
         """Perform a request to ART service getting a resulting image."""
         async with self.waiter:
-            return await self._generate(prompt, aspect_ratio, seed, **kwargs)
+            return await self._generate(prompt, aspect_ratio, **kwargs)
 
     async def close(self) -> None:
         """Free the resources on exit."""

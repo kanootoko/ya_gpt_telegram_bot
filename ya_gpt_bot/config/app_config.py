@@ -247,11 +247,11 @@ class AppConfig:  # pylint: disable=too-many-instance-attributes
                         },
                     ),
                     ClassInitializer(
-                        "ya_gpt_bot.ya_gpt.client.AsyncYaArtClient",
+                        "ya_gpt_bot.ya_gpt.client.YaArtClient",
                         kwargs={
-                            "host": "https://llm.api.cloud.yandex.net",
+                            "host": "https://ai.api.cloud.yandex.net",
                             "folder_id": "yandex-cloud-folder-id",
-                            "model": "yandex-art/latest",
+                            "model": "aliceai-image-art-3.0",
                         },
                     ),
                 ),
